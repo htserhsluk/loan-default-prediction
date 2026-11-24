@@ -1,5 +1,5 @@
 # Findings on the 2015 holdout
-     
+
 The test set contains 38,586 funded loans and 5,729 defaults (14.85%). The earlier training and validation cohorts have default rates of 12.80% and 13.69%. These rates apply to matched, resolved 36-month accounts. Differences in vintage coverage, origination mix, and resolution can all affect comparisons across years.
 
 ## B · Data and prediction visualization
