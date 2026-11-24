@@ -1,0 +1,9 @@
+ML project.pdf
+Topic5_Loan_Default_Prediction.pdf
+loan.csv
+data/
+artifacts/
+.venv/
+__pycache__/
+.pytest_cache/
+catboost_info/

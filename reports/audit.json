@@ -1,0 +1,22 @@
+{
+  "rows": 2260668,
+  "source_sha256": "23783ef320e4df24ac113d6e5b830edb909912b7783d49b89aacd5690dc9120c",
+  "source_columns": 145,
+  "eligible": 494471,
+  "eligible_nonmissing_member_id": 0,
+  "seed": 42,
+  "sample": 100000,
+  "features": 59,
+  "eligible_event_rate": 0.13922757856375803,
+  "sample_event_rate": 0.13882,
+  "unit": "one archived lender member per matched loan",
+  "resolved_before_match": 589315,
+  "archive_hashes": {
+    "LoanStats3b.csv.zip": "1974d64616c321e101ad0bb2d8c0feac48b1e708bf66c7e80b6eda08a0580455",
+    "LoanStats3c.csv.zip": "d521f3b639d8ce03269b1d87c3e97abace8d4653f9bf746f201d6fb1e3835e57",
+    "LoanStats3d.csv.zip": "8e605e349307f2a05a32633a4d73cb646bef16c48ae953225b14af4422d4ae44"
+  },
+  "archive_distinct_members": 714343,
+  "sample_distinct_members": 100000,
+  "borrower_verification": "Unique archive member and one-to-one exact origination signature in both releases"
+}
