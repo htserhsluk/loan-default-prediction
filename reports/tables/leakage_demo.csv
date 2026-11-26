@@ -1,0 +1,10 @@
+feature,single_feature_AUC,leakage
+dti  (application),0.5640728432348099,False
+fico_range_low  (application),0.5965328787201437,False
+int_rate  (application),0.6666163773276712,False
+sub_grade  (application),0.67238735457541,False
+last_pymnt_amnt  [LEAK],0.7659054376447703,True
+recoveries  [LEAK],0.894998354721948,True
+last_fico_range_high  [LEAK],0.9188206452829905,True
+total_pymnt / loan_amnt  [LEAK],0.9568548076700901,True
+total_rec_prncp / loan_amnt  [LEAK],0.9996178767812898,True

@@ -1,0 +1,112 @@
+{
+  "Logistic Regression": {
+    "best_params": {
+      "C": 1.0
+    },
+    "val_AUC": 0.6970697871065487,
+    "train_seconds": 1.0085845831781626,
+    "n_iterations": null,
+    "tuning_seconds": 1.7832803740166128,
+    "threshold": 0.16856171190738678,
+    "test_inference_seconds": 0.010594000108540058,
+    "model_size_mb": 0.004921,
+    "family": "Linear baseline"
+  },
+  "PCA + Logistic Regression": {
+    "best_params": {
+      "n_components": 0.95
+    },
+    "val_AUC": 0.6941632977553138,
+    "train_seconds": 0.4312081248499453,
+    "n_iterations": null,
+    "tuning_seconds": 1.2721037920564413,
+    "n_components": 86,
+    "threshold": 0.16855676472187042,
+    "test_inference_seconds": 0.01834204187616706,
+    "model_size_mb": 0.053656,
+    "family": "PCA"
+  },
+  "Decision Tree": {
+    "best_params": {
+      "max_depth": 6,
+      "min_samples_leaf": 200
+    },
+    "val_AUC": 0.6812143889156279,
+    "train_seconds": 5.014207500033081,
+    "n_iterations": null,
+    "tuning_seconds": 62.74686604272574,
+    "threshold": 0.17894736842105263,
+    "test_inference_seconds": 0.010763375088572502,
+    "model_size_mb": 0.011145,
+    "family": "Single tree"
+  },
+  "Random Forest": {
+    "best_params": {
+      "max_depth": null,
+      "min_samples_leaf": 50
+    },
+    "val_AUC": 0.6991663547188393,
+    "train_seconds": 71.7357661249116,
+    "n_iterations": null,
+    "tuning_seconds": 150.59812479186803,
+    "threshold": 0.17045727863247906,
+    "test_inference_seconds": 0.6906892918050289,
+    "model_size_mb": 93.815693,
+    "family": "Bagging ensemble"
+  },
+  "AdaBoost": {
+    "best_params": null,
+    "val_AUC": 0.6930508679926263,
+    "train_seconds": 145.95489162486047,
+    "n_iterations": 250,
+    "tuning_seconds": 145.95489162486047,
+    "threshold": 0.3432300134041665,
+    "test_inference_seconds": 0.861288582906127,
+    "model_size_mb": 0.222513,
+    "family": "Boosting"
+  },
+  "Gradient Boosting": {
+    "best_params": null,
+    "val_AUC": 0.7016148954368409,
+    "train_seconds": 95.71697520790622,
+    "n_iterations": 240,
+    "tuning_seconds": 95.71697520790622,
+    "threshold": 0.17242574525672907,
+    "test_inference_seconds": 0.2543259998783469,
+    "model_size_mb": 0.327798,
+    "family": "Boosting"
+  },
+  "XGBoost": {
+    "best_params": null,
+    "val_AUC": 0.7061879687063688,
+    "train_seconds": 22.549459333065897,
+    "n_iterations": 573,
+    "tuning_seconds": 22.549459333065897,
+    "threshold": 0.1730366051197052,
+    "test_inference_seconds": 0.1094883750192821,
+    "model_size_mb": 1.666397,
+    "family": "Boosting"
+  },
+  "LightGBM": {
+    "best_params": null,
+    "val_AUC": 0.7064752421133353,
+    "train_seconds": 20.394493957981467,
+    "n_iterations": 651,
+    "tuning_seconds": 20.394493957981467,
+    "threshold": 0.19370992051242705,
+    "test_inference_seconds": 0.48165004095062613,
+    "model_size_mb": 2.326684,
+    "family": "Boosting"
+  },
+  "CatBoost": {
+    "best_params": null,
+    "val_AUC": 0.7071270407546136,
+    "train_seconds": 63.41013816697523,
+    "n_iterations": 1059,
+    "tuning_seconds": 63.41013816697523,
+    "threshold": 0.17428482720930633,
+    "test_inference_seconds": 0.046578291803598404,
+    "model_size_mb": 1.676042,
+    "family": "Boosting"
+  }
+}
