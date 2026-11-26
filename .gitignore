@@ -1,0 +1,22 @@
+# environment
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.ipynb_checkpoints/
+
+# data (download with: python -m src.download_data)
+data/raw/
+data/processed/
+
+# trained models (re-create with: python run_all.py)
+models/
+
+# logs
+reports/*_log.txt
+catboost_info/
+
+# local editor / tool settings
+.claude/
+.vscode/
+.idea/
