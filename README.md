@@ -73,10 +73,10 @@ the applicant's own credit file.
      with no job title cannot be matched at all.
    * Only 168 (strict) or 1,110 (loose) of the 45,000 test loans share a key with a training
      or validation loan.
-   * Removing them changes every model's test AUC by **less than 0.0005**
-     (`borrower_check.json`, `borrower_check_auc.csv`), so the same-borrower overlap the
-     keys can detect does not change any result. The data stays one row per loan
-     application, because the public release has no borrower ID to collapse on.
+   * After excluding the 1,110 test loans flagged by the loose key, every model's test
+     ROC-AUC changed by **less than 0.0005** (the 168 strict-key loans give the same
+     result; `borrower_check.json`, `borrower_check_auc.csv`). The data stays one row per
+     loan application, because the public release has no borrower ID to collapse on.
 
 Final feature set: **83 raw features** (76 numeric, 7 categorical), which become
 **136 model inputs** after one-hot encoding. Engineered features include FICO midpoint,
