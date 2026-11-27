@@ -11,8 +11,10 @@ much that could matter:
    stay fixed for a person between applications:
      strict: first-credit month + 3-digit ZIP + job title + stated income
      loose : first-credit month + 3-digit ZIP + job title
-   The strict key misses repeat borrowers whose income changed; the loose key
-   over-matches common job titles. Together they bracket the true rate.
+   The strict key misses repeat borrowers whose income changed. The loose key
+   over-matches common job titles, but it also misses borrowers who moved or
+   changed jobs, and loans with no job title cannot be matched at all. So
+   neither key bounds the true rate: each gives the share it can detect.
 3. Counts test loans whose key also occurs in train/validation (a possible
    same-borrower overlap across splits) and recomputes every model's test AUC
    without them.

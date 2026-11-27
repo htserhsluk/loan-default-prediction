@@ -14,7 +14,7 @@ Step 1 - Data preparation
 4. Remove data leakage (post-origination columns, see config.LEAKAGE_COLS).
    The $ outcome columns are stored in a *separate* file that is used only by
    the cost-sensitive financial analysis, never as model features.
-5. Draw a stratified random sample of 300,000 borrowers (stratified on
+5. Draw a stratified random sample of 300,000 loans (stratified on
    issue-year x term x default) and verify that it is representative of the
    population (reports/tables/sample_representativeness.csv).
 6. Create a stratified train / validation / test split (70 / 15 / 15).

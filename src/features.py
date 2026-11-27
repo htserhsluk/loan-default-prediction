@@ -133,6 +133,10 @@ def engineer(df: pd.DataFrame) -> pd.DataFrame:
         emp = d["emp_length"].astype("string").str.strip()
         d["emp_length_num"] = emp.map(EMP_MAP).astype(float)
         d["emp_length_missing"] = d["emp_length_num"].isna().astype(int)
+    # Same flag data_prep builds before it drops the free-text title. Training data
+    # arrives with the flag already set; a raw uploaded file still has emp_title.
+    if "emp_title" in d:
+        d["emp_title_missing"] = d["emp_title"].isna().astype(int)
 
     # monthly instalment can be derived from amount, rate and term (annuity formula)
     if "installment" not in d and {"loan_amnt", "int_rate", "term_months"} <= set(d.columns):

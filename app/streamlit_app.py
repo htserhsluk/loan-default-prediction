@@ -191,7 +191,7 @@ info = load_table("benchmark_info.json")
 BEST = max(info, key=lambda m: info[m]["val_AUC"])
 
 st.sidebar.title("📉 Loan Default Risk")
-st.sidebar.caption("Lending Club 2007-2016 matured loans · 300k-borrower sample")
+st.sidebar.caption("Lending Club 2007-2016 matured loans · 300k-loan sample")
 page = st.sidebar.radio("Navigate", [
     "Overview", "Score an applicant", "Batch scoring", "Model benchmark",
     "Lending policy simulator", "Analyses (A · C · F)", "Data & EDA"])
@@ -765,9 +765,13 @@ outcome), split {summ['train']:,} / {summ['val']:,} / {summ['test']:,} (train / 
             k = st.columns(3)
             k[0].metric("Repeat loans (strict)",
                         f"{bc['strict']['possible_repeat_pct']:.2%}")
-            k[1].metric("Upper bound (loose)", f"{bc['loose']['possible_repeat_pct']:.2%}")
+            k[1].metric("Repeat loans (loose)", f"{bc['loose']['possible_repeat_pct']:.2%}")
             k[2].metric("Max test-AUC change", f"{bc['max_abs_auc_change']:.4f}")
-            st.caption(f"{bc['strict']['test_loans_sharing_key_with_train_val']:,} (strict) / "
+            no_key = bc["cohort_loans"] - bc["loose"]["loans_with_complete_key"]
+            st.caption(f"These are the shares each key detects, not bounds: a repeat borrower "
+                       f"who moved or changed jobs escapes both keys, and {no_key:,} loans have "
+                       f"no job title to match on. "
+                       f"{bc['strict']['test_loans_sharing_key_with_train_val']:,} (strict) / "
                        f"{bc['loose']['test_loans_sharing_key_with_train_val']:,} (loose) of the "
                        "45,000 test loans share a key with a training or validation loan. "
                        "Removing them leaves every model's test AUC essentially unchanged.")

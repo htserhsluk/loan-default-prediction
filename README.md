@@ -66,13 +66,17 @@ the applicant's own credit file.
 7. **Repeat borrowers** (`src/borrower_check.py`). Loan `id` is unique, but there is no
    borrower ID. We matched loans on attributes that stay fixed for a person: first-credit
    month, 3-digit ZIP and job title, plus stated income for the strict version.
-   * Possible repeat loans: **0.54%** of the 779k cohort with the strict key, and at most
-     3.5% with the loose key, which over-matches common job titles.
+   * Share of the 779k cohort detected as possible repeat loans: **0.54%** with the strict
+     key and **3.5%** with the loose key.
+   * Neither figure is an upper bound. The loose key over-matches common job titles, but
+     a repeat borrower who moved or changed jobs escapes both keys, and the 51,449 loans
+     with no job title cannot be matched at all.
    * Only 168 (strict) or 1,110 (loose) of the 45,000 test loans share a key with a training
      or validation loan.
-   * Removing them changes every model's test AUC by **at most 0.0005**
-     (`borrower_check.json`, `borrower_check_auc.csv`). Possible same-borrower overlap
-     between splits therefore does not affect any result.
+   * Removing them changes every model's test AUC by **less than 0.0005**
+     (`borrower_check.json`, `borrower_check_auc.csv`), so the same-borrower overlap the
+     keys can detect does not change any result. The data stays one row per loan
+     application, because the public release has no borrower ID to collapse on.
 
 Final feature set: **83 raw features** (76 numeric, 7 categorical), which become
 **136 model inputs** after one-hot encoding. Engineered features include FICO midpoint,
