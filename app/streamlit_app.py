@@ -213,27 +213,30 @@ if page == "Overview":
     b = bench.set_index("model")
     c = st.columns(5)
     c[0].metric("Raw loans", f"{summ['raw_rows']:,}")
-    c[1].metric("Matured & resolved", f"{summ['matured_resolved_loans']:,}")
+    c[1].metric("One per borrower", f"{summ['population_loans']:,}")
     c[2].metric("Modelling sample", f"{summ['sample_size']:,}")
     c[3].metric("Default rate", f"{summ['sample_default_rate']:.1%}")
     c[4].metric(f"Best test AUC ({BEST})", f"{b.loc[BEST, 'ROC_AUC']:.3f}")
 
     st.subheader("Pipeline")
-    st.markdown("""
+    st.markdown(f"""
 1. **Data**: 2.26M Lending Club loans (151 columns). We keep only loans that reached their
    scheduled maturity and have a final outcome: *Fully Paid* (0) vs *Charged Off / Default* (1).
-2. **Leakage removal**: we drop 40 post-origination columns (payments, recoveries,
+2. **One loan per borrower**: Lending Club publishes no borrower ID, so loans that share
+   first-credit month, 3-digit ZIP and job title count as one borrower and only the first is
+   kept ({summ['repeat_loans_removed']:,} later loans removed).
+3. **Leakage removal**: we drop 40 post-origination columns (payments, recoveries,
    settlement, hardship, refreshed FICO).
-3. **Sampling**: a stratified 300k sample (issue-year × term × outcome), checked against the
+4. **Sampling**: a stratified 300k sample (issue-year × term × outcome), checked against the
    population with KS tests and a learning curve.
-4. **Features**: 83 raw features (136 after one-hot encoding). Engineered features include
+5. **Features**: 83 raw features (136 after one-hot encoding). Engineered features include
    affordability ratios, credit-history length and FICO midpoint. Missingness gets its own
    treatment: missing values become *ever happened* flags plus a cap, and a missing bureau
    block gets one flag.
-5. **Models**: Logistic Regression, PCA + LR, Decision Tree, Random Forest, AdaBoost,
+6. **Models**: Logistic Regression, PCA + LR, Decision Tree, Random Forest, AdaBoost,
    Gradient Boosting, XGBoost, LightGBM and CatBoost. All use a 70/15/15 split, are tuned
    on validation and are reported on test.
-6. **Analyses**: A - feature ablation, C - efficiency, F - explainability, plus
+7. **Analyses**: A - feature ablation, C - efficiency, F - explainability, plus
    cost-sensitive lending and calibration.
 """)
     st.subheader("Leaderboard (test set)")
@@ -727,15 +730,20 @@ elif page == "Data & EDA":
     st.markdown(f"""
 **Source:** Lending Club accepted loans 2007-2018Q4 (Kaggle `wordsforthewise/lending-club`):
 {summ['raw_rows']:,} loans × {summ['raw_columns']} columns, one row per loan application.
-Lending Club publishes no borrower ID (`member_id` is blank), so repeat borrowers are checked
-separately (see *Repeat borrowers* below).
 
 **Target:** `default = 1` if the loan was *Charged Off / Default*, `0` if *Fully Paid*.
 Loans still *Current / Late / In grace period* have no final outcome and are excluded.
 
 **Matured-vintage rule:** we keep only loans whose scheduled maturity date (issue date + term)
 falls on or before the data snapshot (Mar-2019). This leaves {summ['matured_resolved_loans']:,}
-loans with a default rate of {summ['population_default_rate']:.1%}.
+loans.
+
+**One loan per borrower:** Lending Club publishes no borrower ID (`member_id` is blank), so
+loans that share first-credit month, 3-digit ZIP and job title are treated as one borrower and
+only the first is kept. This removes {summ['repeat_loans_removed']:,} later loans and leaves
+{summ['population_loans']:,} loans with a default rate of {summ['population_default_rate']:.1%}.
+The {summ['loans_without_borrower_key']:,} loans with no job title cannot be matched and are
+kept (see *Repeat borrowers left* below).
 
 **Sample:** a stratified random sample of {summ['sample_size']:,} loans (issue-year × term ×
 outcome), split {summ['train']:,} / {summ['val']:,} / {summ['test']:,} (train / validation / test).
@@ -755,28 +763,29 @@ outcome), split {summ['train']:,} / {summ['val']:,} / {summ['test']:,} (train / 
                              hide_index=True, width="stretch")
         if has("borrower_check.json"):
             bc = load_table("borrower_check.json")
-            st.markdown("#### Repeat borrowers")
+            st.markdown("#### Repeat borrowers left")
             st.markdown(
                 f"`member_id` is filled in **{bc['member_id_non_missing']:,}** of "
                 f"{bc['raw_loans']:,} loans, and the loan `id` is "
-                f"{'unique' if bc['loan_id_unique'] else 'NOT unique'}. We matched loans on "
-                "attributes that stay fixed for a person: first-credit month, 3-digit ZIP and "
-                "job title, plus stated income for the strict key.")
+                f"{'unique' if bc['loan_id_unique'] else 'NOT unique'}. After keeping one loan "
+                f"per borrower, **{bc['borrower_key_repeats_left']}** loans share the borrower "
+                "key. That key misses a repeat borrower who moved or changed jobs, so we also "
+                "searched with two keys that swap one part for the stated income: "
+                "*moved* (first-credit month + job title + income) and *new job* "
+                "(first-credit month + 3-digit ZIP + income).")
             k = st.columns(3)
-            k[0].metric("Repeat loans (strict)",
-                        f"{bc['strict']['possible_repeat_pct']:.2%}")
-            k[1].metric("Repeat loans (loose)", f"{bc['loose']['possible_repeat_pct']:.2%}")
+            k[0].metric("Possible repeats (moved)", f"{bc['moved']['possible_repeat_pct']:.2%}")
+            k[1].metric("Possible repeats (new job)",
+                        f"{bc['new_job']['possible_repeat_pct']:.2%}")
             k[2].metric("Max test-AUC change", f"{bc['max_abs_auc_change']:.4f}")
-            no_key = bc["cohort_loans"] - bc["loose"]["loans_with_complete_key"]
-            st.caption(f"These are the shares each key detects, not bounds: a repeat borrower "
-                       f"who moved or changed jobs escapes both keys, and {no_key:,} loans have "
-                       f"no job title to match on. "
-                       f"{bc['strict']['test_loans_sharing_key_with_train_val']:,} (strict) / "
-                       f"{bc['loose']['test_loans_sharing_key_with_train_val']:,} (loose) of the "
-                       "45,000 test loans share a key with a training or validation loan. "
-                       "Removing them leaves every model's test AUC essentially unchanged.")
+            st.caption(f"Both keys also match different people who share these values, so these "
+                       f"are estimates. {bc['moved']['test_loans_sharing_key_with_train_val']:,} "
+                       f"(moved) / {bc['new_job']['test_loans_sharing_key_with_train_val']:,} "
+                       "(new job) of the 45,000 test loans share a key with a training or "
+                       "validation loan. Removing them changes every model's test ROC-AUC by "
+                       f"at most {bc['max_abs_auc_change']:.4f}.")
             if has("borrower_check_auc.csv"):
-                with st.expander("Test AUC with and without possible repeat borrowers"):
+                with st.expander("Test ROC-AUC with and without possible repeat borrowers"):
                     st.dataframe(load_table("borrower_check_auc.csv").round(4),
                                  hide_index=True, width="stretch")
     with t[1]:

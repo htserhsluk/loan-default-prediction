@@ -2,21 +2,27 @@
   "raw_loans": 2260668,
   "member_id_non_missing": 0,
   "loan_id_unique": true,
-  "cohort_loans": 779026,
+  "borrower_key": "earliest_cr_line + zip_code + emp_title",
+  "matured_resolved_loans": 779026,
+  "repeat_loans_removed": 27018,
+  "repeat_loans_default_rate": 0.14116514915981937,
+  "loans_without_borrower_key": 51449,
+  "population_loans": 752008,
+  "borrower_key_repeats_left": 0,
   "sample_loans": 300000,
-  "strict": {
-    "key": "earliest_cr_line + zip_code + emp_title_norm + annual_inc",
-    "loans_with_complete_key": 727577,
-    "possible_repeat_loans": 4229,
-    "possible_repeat_pct": 0.005428573629121493,
-    "test_loans_sharing_key_with_train_val": 168
+  "moved": {
+    "key": "earliest_cr_line + emp_title + annual_inc",
+    "loans_with_complete_key": 700559,
+    "possible_repeat_loans": 19362,
+    "possible_repeat_pct": 0.02574706652056893,
+    "test_loans_sharing_key_with_train_val": 867
   },
-  "loose": {
-    "key": "earliest_cr_line + zip_code + emp_title_norm",
-    "loans_with_complete_key": 727577,
-    "possible_repeat_loans": 27018,
-    "possible_repeat_pct": 0.03468176928626259,
-    "test_loans_sharing_key_with_train_val": 1110
+  "new_job": {
+    "key": "earliest_cr_line + zip_code + annual_inc",
+    "loans_with_complete_key": 751979,
+    "possible_repeat_loans": 42535,
+    "possible_repeat_pct": 0.056561898277677894,
+    "test_loans_sharing_key_with_train_val": 1895
   },
-  "max_abs_auc_change": 0.00048708781409734225
+  "max_abs_auc_change": 0.0008586637219442084
 }

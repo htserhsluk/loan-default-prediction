@@ -11,13 +11,17 @@ Step 1 - Data preparation
    the file, Mar-2019).  Recent loans that are *already* resolved are a biased
    subset (early defaults + early pre-payments) - see the vintage table that
    this script writes to reports/tables/vintage_stats.csv.
-4. Remove data leakage (post-origination columns, see config.LEAKAGE_COLS).
+4. One loan per borrower. Lending Club publishes no borrower ID, so a borrower
+   is identified by first-credit month + 3-digit ZIP + job title
+   (config.BORROWER_KEY) and only their first loan is kept. Loans with no job
+   title cannot be matched and are kept (see src/borrower_check.py).
+5. Remove data leakage (post-origination columns, see config.LEAKAGE_COLS).
    The $ outcome columns are stored in a *separate* file that is used only by
    the cost-sensitive financial analysis, never as model features.
-5. Draw a stratified random sample of 300,000 loans (stratified on
+6. Draw a stratified random sample of 300,000 loans (stratified on
    issue-year x term x default) and verify that it is representative of the
    population (reports/tables/sample_representativeness.csv).
-6. Create a stratified train / validation / test split (70 / 15 / 15).
+7. Create a stratified train / validation / test split (70 / 15 / 15).
 
 Usage:
     python -m src.data_prep
@@ -29,9 +33,9 @@ import pandas as pd
 from scipy.stats import ks_2samp
 from sklearn.model_selection import train_test_split
 
-from src.config import (BAD_STATUSES, GOOD_STATUSES, ID_TEXT_COLS, LEAKAGE_COLS,
-                        OUTCOME_COLS, OUTCOME_FILE, POPULATION_FILE, RAW_FILE,
-                        SAMPLE_FILE, SAMPLE_SIZE, SEED, SNAPSHOT_DATE,
+from src.config import (BAD_STATUSES, BORROWER_KEY, GOOD_STATUSES, ID_TEXT_COLS,
+                        LEAKAGE_COLS, OUTCOME_COLS, OUTCOME_FILE, POPULATION_FILE,
+                        RAW_FILE, SAMPLE_FILE, SAMPLE_SIZE, SEED, SNAPSHOT_DATE,
                         SPLIT_FILE, TABLE_DIR, TARGET, TEST_SIZE, VAL_SIZE)
 
 CHUNK = 250_000
@@ -39,6 +43,30 @@ CHUNK = 250_000
 
 def _term_months(s: pd.Series) -> pd.Series:
     return s.astype("string").str.extract(r"(\d+)")[0].astype(float)
+
+
+def borrower_key(df: pd.DataFrame, cols: list[str]) -> pd.Series:
+    """One tuple of `cols` per loan, NaN where any part is missing. The job
+    title is lower-cased and trimmed so that 'Teacher ' and 'teacher' match."""
+    parts = [df[c].astype("string").str.lower().str.strip() if c == "emp_title" else df[c]
+             for c in cols]
+    complete = pd.concat(parts, axis=1).notna().all(axis=1)
+    return pd.Series(list(zip(*parts)), index=df.index).where(complete)
+
+
+def one_loan_per_borrower(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    """Keep each identified borrower's first loan (earliest issue date, then
+    lowest loan id). Loans with an incomplete key cannot be matched and are kept."""
+    key = borrower_key(df, BORROWER_KEY)
+    order = pd.DataFrame({"issue_d": df["issue_d"], "id": pd.to_numeric(df["id"]),
+                          "key": key}).sort_values(["issue_d", "id"])
+    has_key = order["key"].notna()
+    repeat = has_key & order["key"].duplicated()
+    drop = order.index[repeat]
+    stats = {"repeat_loans_removed": int(repeat.sum()),
+             "repeat_loans_default_rate": float(df.loc[drop, TARGET].mean()),
+             "loans_without_borrower_key": int((~has_key).sum())}
+    return df.drop(index=drop), stats
 
 
 def load_resolved_matured() -> tuple[pd.DataFrame, pd.DataFrame, int]:
@@ -148,8 +176,15 @@ def main() -> None:
     print("[prep] reading raw data in chunks ...")
     df, _, n_raw = load_resolved_matured()
     df = coerce_numeric(df)
-    print(f"[prep] matured & resolved loans: {len(df):,}  "
+    n_matured = len(df)
+    print(f"[prep] matured & resolved loans: {n_matured:,}  "
           f"(default rate {df[TARGET].mean():.3%})")
+
+    df, dedup = one_loan_per_borrower(df)
+    print(f"[prep] one loan per borrower: removed {dedup['repeat_loans_removed']:,} later "
+          f"loans of a repeat borrower (default rate {dedup['repeat_loans_default_rate']:.1%}); "
+          f"{dedup['loans_without_borrower_key']:,} loans have no job title and are kept; "
+          f"{len(df):,} loans remain (default rate {df[TARGET].mean():.3%})")
 
     # ------------------------------------------------------------------
     # Separate the post-loan $ outcomes (cost analysis only) BEFORE removing
@@ -201,7 +236,9 @@ def main() -> None:
     summary = {
         "raw_rows": int(n_raw),
         "raw_columns": 151,
-        "matured_resolved_loans": int(len(clean)),
+        "matured_resolved_loans": int(n_matured),
+        **dedup,
+        "population_loans": int(len(clean)),
         "population_default_rate": float(clean[TARGET].mean()),
         "sample_size": int(len(sample)),
         "sample_default_rate": float(sample[TARGET].mean()),

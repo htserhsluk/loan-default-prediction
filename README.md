@@ -14,18 +14,19 @@ make better-informed approval decisions.
 |---|---|
 | Source | Lending Club accepted loans 2007-2018Q4, Kaggle [`wordsforthewise/lending-club`](https://www.kaggle.com/datasets/wordsforthewise/lending-club) |
 | Institution | Lending Club, a US peer-to-peer lender registered with the SEC (a genuine lender, not a toy or benchmark dataset) |
-| Size | **2,260,668 loans × 151 columns**, one row per loan (one borrower's application) |
+| Size | **2,260,668 loans × 151 columns**, one row per loan, reduced to one loan per borrower (item 3) |
 | Target | `default = 1` for *Charged Off / Default*, `0` for *Fully Paid* |
 
 The dataset meets the brief's requirements: a real lender, far more than 100k borrowers,
-50+ features, and one row per loan application (not monthly payment records). Lending Club
-does not publish a borrower ID (`member_id` is blank in all 2,260,668 rows), so a borrower who
-took two loans cannot be identified exactly. Item 7 below measures how much that could matter.
+50+ features, and one row per borrower (not monthly payment records). Lending Club does not
+publish a borrower ID (`member_id` is blank in all 2,260,668 rows), so we identify a borrower
+by attributes that stay fixed between applications and keep only their first loan (item 3
+below). Item 8 measures the repeat borrowers this cannot catch.
 
 **Scope of the model.** It scores loans that Lending Club approved, at the point where Lending
 Club had already assigned a grade and interest rate. The results do not cover rejected
 applicants or decisions made before pricing. Without Lending Club's grade, sub-grade and rate,
-the boosted models lose only 0.7-1.0 AUC points (Analysis A), so most of the signal comes from
+the boosted models lose only 0.5-0.9 AUC points (Analysis A), so most of the signal comes from
 the applicant's own credit file.
 
 ### Data-handling decisions (all justified in the code and figures)
@@ -35,23 +36,32 @@ the applicant's own credit file.
    (`issue_d + term`) is on or before the data snapshot (Mar-2019). Recent loans that are
    already "resolved" are a biased subset made up of early defaults and early pre-payments:
    their default rate swings from 23% (2016-17) to 16% (2018). See
-   `reports/figures/eda/vintage_analysis.png`. This leaves **779,026 loans** with a 15.2%
-   default rate.
-3. **Leakage removal.** We remove 40 columns that are only known after the loan is issued:
+   `reports/figures/eda/vintage_analysis.png`. This leaves **779,026 loans**.
+3. **One loan per borrower** (`one_loan_per_borrower` in `src/data_prep.py`). Loan `id` is
+   unique, but there is no borrower ID. Loans that share first-credit month, 3-digit ZIP and
+   job title (lower-cased) are treated as one borrower, and only that borrower's first loan
+   (earliest issue date) is kept.
+   * This removes **27,018** later loans (3.5%; their default rate is 14.1%) and leaves
+     **752,008 loans**, one per identified borrower, with a 15.2% default rate.
+   * The 51,449 loans with no job title cannot be matched, so they are kept.
+   * The key also merges some different people who share a common job title, ZIP and
+     first-credit month. Dropping their later loans costs data but does not create
+     duplicates.
+4. **Leakage removal.** We remove 40 columns that are only known after the loan is issued:
    payments, recoveries, collection fees, refreshed FICO, hardship and settlement fields,
    and funded amounts. `leakage_demo.png` shows that a single such column reaches an
-   AUC of up to 0.9996, while the best genuine application variable reaches only 0.67.
+   AUC of up to 0.9995, while the best genuine application variable reaches only 0.67.
    We also drop identifiers and free text (`id`, `url`, `desc`, `title`, `emp_title`,
-   `zip_code`).
-4. **Sampling.** We draw a stratified random sample of **300,000 loans**, stratified on
-   issue-year × term × outcome. All KS tests against the population give p > 0.5, and the
+   `zip_code`), after using the last two for item 3.
+5. **Sampling.** We draw a stratified random sample of **300,000 loans**, stratified on
+   issue-year × term × outcome. All KS tests against the population give p > 0.2, and the
    total-variation distance for categorical variables is ≤ 0.002
    (`sample_representativeness.csv`). A learning curve on the full population
-   (`sampling_learning_curve.png`) shows diminishing returns: training on all 679k loans
+   (`sampling_learning_curve.png`) shows diminishing returns: training on all 652k loans
    instead of 210k gains only +0.005 AUC for 3× the compute. The sample keeps the slow
    prescribed models (sklearn Gradient Boosting, AdaBoost), SHAP and the ~200-model ablation
    grid feasible on a laptop.
-5. **Missing values are informative and are not handled blindly.**
+6. **Missing values are informative and are not handled blindly.**
    * `mths_since_<event>`: missing means the event never happened. We add an `ever_<event>`
      flag and fill with a 240-month cap.
    * The credit-bureau block was not collected before ~2012. We add one
@@ -60,23 +70,23 @@ the applicant's own credit file.
      21% vs 15%) and impute the median.
    * Fields that are > 50% missing are dropped. These were added by Lending Club only
      in late 2015, or belong to joint applications.
-6. **Split.** 70 / 15 / 15 stratified train / validation / test. The validation set is used
+7. **Split.** 70 / 15 / 15 stratified train / validation / test. The validation set is used
    for tuning, early stopping, threshold choice and calibration. The test set is used
    only for reporting.
-7. **Repeat borrowers** (`src/borrower_check.py`). Loan `id` is unique, but there is no
-   borrower ID. We matched loans on attributes that stay fixed for a person: first-credit
-   month, 3-digit ZIP and job title, plus stated income for the strict version.
-   * Share of the 779k cohort detected as possible repeat loans: **0.54%** with the strict
-     key and **3.5%** with the loose key.
-   * Neither figure is an upper bound. The loose key over-matches common job titles, but
-     a repeat borrower who moved or changed jobs escapes both keys, and the 51,449 loans
-     with no job title cannot be matched at all.
-   * Only 168 (strict) or 1,110 (loose) of the 45,000 test loans share a key with a training
-     or validation loan.
-   * After excluding the 1,110 test loans flagged by the loose key, every model's test
-     ROC-AUC changed by **less than 0.0005** (the 168 strict-key loans give the same
-     result; `borrower_check.json`, `borrower_check_auc.csv`). The data stays one row per
-     loan application, because the public release has no borrower ID to collapse on.
+8. **Repeat borrowers left** (`src/borrower_check.py`). After item 3, no two loans share
+   the borrower key. That key misses a repeat borrower who moved or changed jobs, so we
+   searched again with two keys that each swap one part for the stated income:
+   * *moved* (first-credit month + job title + income): **2.6%** of the 752k loans are
+     possible repeats.
+   * *new job* (first-credit month + 3-digit ZIP + income; also covers loans with no job
+     title): **5.7%**.
+   * Both keys also match different people who share these values, so these are
+     estimates, not exact counts. No borrower ID exists to verify them.
+   * 867 (moved) and 1,895 (new job) of the 45,000 test loans share such a key with a
+     training or validation loan. After excluding them, every model's test ROC-AUC changed
+     by **less than 0.001**, and every change was a small *increase*. Any repeat borrowers
+     left therefore do not inflate the reported results (`borrower_check.json`,
+     `borrower_check_auc.csv`).
 
 Final feature set: **83 raw features** (76 numeric, 7 categorical), which become
 **136 model inputs** after one-hot encoding. Engineered features include FICO midpoint,
@@ -99,25 +109,25 @@ Metrics: ROC-AUC, Gini, PR-AUC, KS, Brier, log-loss, and at the F1-optimal thres
 ### Benchmark results (45,000-borrower test set)
 | Model | ROC-AUC | PR-AUC | KS | Brier | F1 | Recall | Precision | Train time (s) |
 |---|---|---|---|---|---|---|---|---|
-| **CatBoost** | **0.7102** | 0.2994 | 0.307 | 0.1191 | 0.366 | 0.601 | 0.263 | 63.4 |
-| LightGBM | 0.7091 | **0.3011** | 0.307 | 0.1191 | 0.366 | 0.536 | 0.278 | 20.4 |
-| XGBoost | 0.7090 | 0.2999 | 0.306 | 0.1192 | 0.367 | 0.611 | 0.262 | 22.5 |
-| Gradient Boosting | 0.7047 | 0.2928 | 0.302 | 0.1197 | 0.361 | 0.600 | 0.259 | 95.7 |
-| Random Forest | 0.7009 | 0.2900 | 0.296 | 0.1202 | 0.358 | 0.629 | 0.250 | 71.7 |
-| Logistic Regression | 0.7008 | 0.2898 | 0.293 | 0.1201 | 0.358 | 0.587 | 0.257 | 1.0 |
-| PCA (86 PCs = 95% var.) + LR | 0.6982 | 0.2851 | 0.291 | 0.1205 | 0.359 | 0.588 | 0.259 | 0.4 |
-| AdaBoost | 0.6944 | 0.2826 | 0.289 | 0.1515 | 0.352 | 0.625 | 0.245 | 146.0 |
-| Decision Tree (depth 6) | 0.6820 | 0.2640 | 0.265 | 0.1218 | 0.343 | 0.574 | 0.245 | 5.0 |
+| **CatBoost** | **0.7085** | **0.3018** | 0.304 | 0.1193 | 0.366 | 0.600 | 0.263 | 38.8 |
+| LightGBM | 0.7077 | 0.2988 | 0.303 | 0.1195 | 0.369 | 0.578 | 0.271 | 19.2 |
+| XGBoost | 0.7069 | 0.2999 | 0.303 | 0.1195 | 0.363 | 0.588 | 0.262 | 18.2 |
+| Gradient Boosting | 0.7038 | 0.2951 | 0.297 | 0.1199 | 0.362 | 0.623 | 0.255 | 71.0 |
+| Random Forest | 0.7011 | 0.2909 | 0.294 | 0.1204 | 0.360 | 0.597 | 0.258 | 47.6 |
+| Logistic Regression | 0.7007 | 0.2901 | 0.294 | 0.1203 | 0.359 | 0.612 | 0.254 | 1.1 |
+| PCA (87 PCs = 95% var.) + LR | 0.6969 | 0.2857 | 0.290 | 0.1207 | 0.359 | 0.593 | 0.258 | 0.6 |
+| AdaBoost | 0.6944 | 0.2828 | 0.285 | 0.1519 | 0.353 | 0.614 | 0.248 | 142.7 |
+| Decision Tree (depth 6) | 0.6818 | 0.2633 | 0.269 | 0.1220 | 0.344 | 0.666 | 0.232 | 4.7 |
 
 *Threshold metrics use the F1-optimal threshold chosen on the validation set. The default rate is 15.2%, so a random model has PR-AUC 0.152.*
 
 **Findings**
 * The three modern gradient-boosting libraries (CatBoost, LightGBM, XGBoost) come out on top
-  and are practically tied (ΔAUC ≤ 0.001). Classic sklearn Gradient Boosting is close behind.
+  and are practically tied (ΔAUC ≤ 0.002). Classic sklearn Gradient Boosting is close behind.
 * Logistic Regression is a strong baseline (0.701). The default signal in application data is
   largely monotonic, so a single deep tree (0.682) and AdaBoost (0.694) lag behind.
-* **PCA** needs 86 of 136 components to keep 95% of the variance, because the features are only
-  weakly correlated. Projecting onto them slightly *hurts* the linear model (0.698 vs 0.701)
+* **PCA** needs 87 of 136 components to keep 95% of the variance, because the features are only
+  weakly correlated. Projecting onto them slightly *hurts* the linear model (0.697 vs 0.701)
   because PCA is unsupervised: it keeps directions of high variance, not of high predictive
   power. PC1/PC2 show heavily overlapping classes (`pca_scatter_pc1_pc2.png`).
 * AdaBoost's raw scores are squashed towards 0.5 (Brier 0.152, mean score 0.33 vs a 15% default
@@ -129,7 +139,7 @@ Metrics: ROC-AUC, Gini, PR-AUC, KS, Brier, log-loss, and at the F1-optimal thres
   demo).
 
 **Sampling check:** LightGBM trained on 210k rows reaches a hold-out AUC of 0.708. Trained on
-all 679k available rows it reaches 0.713. Tripling the data (and training time) gains only
+all 652k available rows it reaches 0.713. Tripling the data (and training time) gains only
 +0.005 AUC, so the 300k sample is a sensible trade-off.
 
 ---
@@ -144,60 +154,63 @@ subsample and was evaluated on the full 45k test set.
 
 | Removed group | Mean ΔAUC over 9 models (×100) |
 |---|---|
-| LC risk grade (grade, sub-grade, interest rate) | **-1.09** |
-| Credit score & history | -0.50 |
-| Loan characteristics (amount, term, purpose, ratios) | -0.47 |
-| Borrower profile (income, employment, home, state, DTI) | -0.21 |
-| Balances & utilisation | -0.18 |
-| Delinquency & public records | -0.04 |
-| Account counts | -0.04 |
+| LC risk grade (grade, sub-grade, interest rate) | **-1.08** |
+| Credit score & history | -0.79 |
+| Loan characteristics (amount, term, purpose, ratios) | -0.62 |
+| Borrower profile (income, employment, home, state, DTI) | -0.33 |
+| Balances & utilisation | -0.14 |
+| Delinquency & public records | -0.12 |
+| Account counts | -0.07 |
 
-* **LC's own grade is the single most informative group.** On its own it reaches AUC ≈ 0.674,
-  about 97% of the full model. Removing it costs the boosting models only 0.7-1.0 AUC points,
+* **LC's own grade is the single most informative group.** On its own it reaches AUC ≈ 0.67,
+  about 97% of the full model. Removing it costs the boosting models only 0.5-0.9 AUC points,
   so the credit-bureau data contain most of the same information. The single Decision Tree
-  depends on it most (-2.7 points).
-* **Delinquency / public-record features add almost nothing on top of the rest** (AUC 0.51-0.52
-  alone). Most borrowers have clean records, and LC had already declined the worst cases.
+  depends on it most (-2.6 points).
+* **Delinquency / public-record features add little on top of the rest** (AUC 0.52 alone).
+  Most borrowers have clean records, and LC had already declined the worst cases.
 * **Feature selection:** the top 40 of 83 raw features (LightGBM gain on train) come within
-  0.1-0.4 AUC points of the full set, and even the top 5 reach 0.674-0.688. The Decision Tree *improves* with fewer features
-  (0.676 with 5 vs 0.669 with all) because it overfits less.
-* **Dimensionality reduction:** with 40 principal components, Logistic Regression is almost
-  unchanged (-0.1 points). Random Forest and the gradient-boosting models lose 0.7-1.0 points,
-  because PCA rotates away the monotone, axis-aligned splits that trees exploit. With only 5
-  components, every model except the Decision Tree loses 1.2-2.7 points.
-* **Engineering value:** the effects are small (≤ 0.25 points). The linear models gain most
-  from the ratio features (+0.14) and the missingness flags (+0.23). XGBoost, LightGBM and
-  CatBoost largely learn these patterns themselves (≤ 0.07). sklearn Gradient Boosting still
-  benefits from the flags (+0.19).
+  0.3-0.8 AUC points of the full set, and even the top 5 reach 0.672-0.685. The Decision Tree
+  does *better* with fewer features (0.674 with 5 and 0.677 with 10, vs 0.668 with all) because
+  it overfits less.
+* **Dimensionality reduction:** with 40 principal components, Logistic Regression loses only
+  0.3 points. Random Forest and the gradient-boosting models lose 0.7-1.2 points, because PCA
+  rotates away the monotone, axis-aligned splits that trees exploit. With only 5 components,
+  every model except the Decision Tree loses 1.4-2.5 points.
+* **Engineering value:** the effects are small (≤ 0.45 points) and partly noise at a 30k-row
+  training subsample. The missingness flags help every model except the Decision Tree
+  (+0.06 to +0.44, most for XGBoost and sklearn Gradient Boosting). The ratio features help
+  most models a little (up to +0.23), while LightGBM and CatBoost do slightly better without
+  them (by 0.1-0.15), because they build these interactions from the raw amounts themselves.
 
 ### C. Model efficiency (`src/analysis_efficiency.py`, `reports/figures/analysis_C_efficiency/`)
 | Model | Test AUC | Train (s) | Tuning total (s) | Batch inference (µs/row) | 1 applicant, model only (ms) | Size (MB) | Trees / nodes | Scaling exponent |
 |---|---|---|---|---|---|---|---|---|
-| Logistic Regression | 0.701 | 1.0 | 1.8 | 0.26 | 0.26 | 0.005 | 137 coef. | 1.01 |
-| PCA + LR | 0.698 | 0.4 | 1.3 | 0.40 | 0.30 | 0.05 | 86 PCs | 0.95 |
-| Decision Tree | 0.682 | 5.0 | 62.7 | **0.08** | **0.07** | 0.01 | 1 / 125 | 1.08 |
-| Random Forest | 0.701 | 71.7 | 150.6 | 11.0 | 26.6 | **93.8** | 300 / 1.17M | **1.42** |
-| AdaBoost | 0.694 | **146.0** | 146.0 | 19.6 | 20.7 | 0.22 | 250 / 1,750 | 1.09 |
-| Gradient Boosting | 0.705 | 95.7 | 95.7 | 5.0 | 0.24 | 0.33 | 240 / 3,578 | 1.02 |
-| XGBoost | 0.709 | 22.5 | 22.5 | 0.95 | 0.23 | 1.7 | 573 / 30.5k | 1.10 |
-| LightGBM | 0.709 | 20.4 | 20.4 | 8.4 | 0.58 | 2.3 | 651 / 39.7k | 0.50 |
-| **CatBoost** | **0.710** | 63.4 | 63.4 | 0.62 | 0.17 | 1.3 | 1,059 / 134k | 0.62 |
+| Logistic Regression | 0.701 | 1.1 | 1.9 | 0.22 | 0.21 | 0.005 | 137 coef. | 1.11 |
+| PCA + LR | 0.697 | 0.6 | 1.4 | 0.36 | 0.30 | 0.05 | 87 PCs | 1.05 |
+| Decision Tree | 0.682 | 4.7 | 59.3 | **0.08** | **0.07** | 0.01 | 1 / 123 | 1.10 |
+| Random Forest | 0.701 | 47.6 | 102.0 | 8.5 | 30.2 | **132.1** | 300 / 1.65M | **1.31** |
+| AdaBoost | 0.694 | **142.7** | 142.7 | 17.6 | 19.6 | 0.22 | 250 / 1,750 | 1.09 |
+| Gradient Boosting | 0.704 | 71.0 | 71.0 | 3.4 | 0.22 | 0.28 | 197 / 2,941 | 1.10 |
+| XGBoost | 0.707 | 18.2 | 18.2 | 1.23 | 0.38 | 1.9 | 672 / 35.8k | 0.70 |
+| LightGBM | 0.708 | 19.2 | 19.2 | 10.8 | 0.42 | 3.3 | 935 / 57.0k | 0.36 |
+| **CatBoost** | **0.709** | 38.8 | 38.8 | 0.59 | 0.17 | 1.4 | 1,185 / 150k | 0.57 |
 
-*Train time is the benchmark fit on 210k rows on an 8-core laptop (early stopping included). Tuning total is the sum of all grid fits. The scaling exponent is the slope of log(train time) vs log(rows) over 10k-210k with fixed hyper-parameters. Batch and single-applicant times cover the model step only, on already-preprocessed input. Preprocessing one applicant adds about 6-12 ms for every model, so end-to-end scoring of one applicant takes about 6 ms with CatBoost. These are single-run timings, so expect ±20-50% noise (e.g. XGBoost's 210k point).*
+*Train time is the benchmark fit on 210k rows on an 8-core laptop (early stopping included). Tuning total is the sum of all grid fits. The scaling exponent is the slope of log(train time) vs log(rows) over 10k-210k with fixed hyper-parameters. Batch and single-applicant times cover the model step only, on already-preprocessed input. Preprocessing one applicant adds about 5-10 ms for every model, so end-to-end scoring of one applicant takes about 6 ms with CatBoost. These are single-run timings, so expect ±20-50% noise.*
 
 * **CatBoost is on all three Pareto frontiers** (AUC vs training time, inference time and
-  size). It is the most accurate model, is tiny (1.3 MB), and its model step scores one
+  size). It is the most accurate model, is small (1.4 MB), and its model step scores one
   applicant in 0.17 ms thanks to its symmetric (oblivious) trees.
-* **Random Forest is the least efficient model.** It is 94 MB (fully grown trees, 1.17M
-  nodes), its model step takes 27 ms for a single applicant (parallel-dispatch overhead), and its
-  training time grows super-linearly (exponent 1.42) because the trees get deeper with
-  more data. On AUC it only matches the 5 KB Logistic Regression.
+* **Random Forest is the least efficient model.** It is 132 MB (300 trees of depth 16,
+  1.65M nodes), its model step takes 30 ms for a single applicant (parallel-dispatch
+  overhead), and its training time grows super-linearly (exponent 1.31) because each tree
+  grows more nodes as the data grow. On AUC it only matches the 5 KB Logistic Regression.
 * **AdaBoost and sklearn Gradient Boosting** train slowest, because they are single-threaded
-  and boost sequentially with exact splits. LightGBM / XGBoost reach higher AUC 4-7× faster.
-  LightGBM and CatBoost scale sub-linearly because histogram binning amortises over rows.
-* **Logistic Regression** gives 95.5% of CatBoost's discriminative power (Gini 0.40 vs 0.42)
-  for 1/60 of the training time. It is the right choice when a transparent, near-zero-cost scorecard is
-  needed.
+  and boost sequentially with exact splits. LightGBM / XGBoost reach higher AUC 4-8× faster.
+  The histogram-based libraries (LightGBM, CatBoost, XGBoost) scale sub-linearly here
+  (exponents 0.4-0.7) because binning amortises over rows.
+* **Logistic Regression** gives 96% of CatBoost's discriminative power (Gini 0.40 vs 0.42)
+  for 1/35 of the training time. It is the right choice when a transparent, near-zero-cost
+  scorecard is needed.
 
 ### F. Interpretability & explainability (`src/analysis_explainability.py`, `reports/figures/analysis_F_explainability/`)
 Methods: model-agnostic **permutation importance** for all 9 models, at both raw-feature and
@@ -206,30 +219,34 @@ LightGBM / XGBoost / Decision Tree: global beeswarm, dependence plots and 3 loca
 **Partial dependence** for 8 key inputs across all models (on calibrated PDs), plus ICE curves.
 Glass-box views: the decision-tree rules and the logistic-regression coefficients.
 
-* **What drives risk.** Every model ranks LC's **sub-grade / grade** first. The next most
-  important inputs are **accounts opened in the last 24 months** (recent credit-seeking),
-  **DTI**, **loan / income**, **FICO**, **term** and **home ownership**. Shuffling the whole
-  LC-grade group costs 4.9-14 AUC points. Shuffling the delinquency / public-record group
-  costs ≈ 0, which matches Analysis A.
+* **What drives risk.** At group level, every model ranks LC's **risk grade** first. Among
+  single inputs, **sub-grade / grade** lead for the boosted models and the Decision Tree, and
+  **accounts opened in the last 24 months** (recent credit-seeking) is first or second for
+  every tree ensemble. Logistic Regression leans most on **loan / income**. Other important
+  inputs are **term**, **DTI**, **months since the most recent bankcard** and **total
+  bankcard limit**. Shuffling the whole LC-grade group costs 4.4-14.5 AUC points. Shuffling
+  the delinquency / public-record group costs under 0.5 points, which matches Analysis A.
 * **Direction of effects (SHAP + PDP; consistent across the boosted models):** a 60-month
-  term adds about +3-5 PD points. PD rises steadily with DTI (≈ 14% → 18.5% over 0-35%) and
-  with loan-to-income and revolving utilisation. It falls with FICO (≈ 16.5% at 660 →
-  14% at 780) and with income up to ≈ $100k. Renting raises risk and having a mortgage lowers
+  term adds about +4-5 PD points. PD rises steadily with DTI (≈ 14% → 17.5% over 0-35%) and
+  with loan-to-income and revolving utilisation. It falls with FICO (≈ 16% at 660 →
+  13% at 780) and with income up to ≈ $100k. Renting raises risk and having a mortgage lowers
   it.
 * **Correlated features share credit.** grade, sub-grade and interest rate carry almost the
   same information. Individually they look modest for Random Forest and CatBoost, but jointly
-  they dominate. Holding sub-grade fixed, extra interest rate adds little for the boosters
-  (flat PDP).
-* **Model agreement.** The boosted models agree strongly on feature rankings (Spearman
-  0.65-0.78). Logistic Regression, PCA + LR and the Decision Tree agree much less (0.17-0.48).
+  they dominate. Holding sub-grade fixed, extra interest rate adds little for the boosters:
+  their PDP is flat or slightly falling above a rate of about 10%.
+* **Model agreement.** XGBoost, LightGBM and CatBoost agree strongly on feature rankings
+  (Spearman 0.70-0.85), and moderately with Random Forest, AdaBoost and sklearn Gradient
+  Boosting (0.55-0.64). Logistic Regression, PCA + LR and the Decision Tree agree much less
+  (0.18-0.53).
   The linear model leans on the engineered *loan / income* ratio, and the single tree on a
   handful of grade splits.
 * **Local explanations (CatBoost waterfalls).** Three applicants are shown:
-  * A *high-risk defaulter* with PD 62%: grade G3, 60-month term, 8 accounts opened in
-    24 months, no bankcard limit, FICO 667.
-  * A *low-risk repayer* with PD 0.8%: grade A1, FICO 837, DTI 6%, 2% revolving
+  * A *high-risk defaulter* with PD 59%: grade E1, 60-month term, a bankcard opened a month
+    earlier, no bankcard credit left, a loan worth 44% of income, FICO 707.
+  * A *low-risk repayer* with PD 1.1%: grade A1, FICO 797, DTI 3.5%, 10% revolving
     utilisation.
-  * A *missed default* with PD 2.4%: grade A1, 5.3% rate, DTI 9%. On paper this applicant
+  * A *missed default* with PD 2.4%: grade A1, 6.0% rate, FICO 782, DTI 17%. On paper this applicant
     looks safe. The data do not record why the loan defaulted. Possible causes include
     events after origination, such as job loss or illness, that no application-time model
     can see.
@@ -240,28 +257,30 @@ Glass-box views: the decision-tree rules and the logistic-regression coefficient
 ### Optional extension: cost-sensitive lending (memo: `reports/memo_head_of_risk.md`)
 * **Calibration:** CatBoost probabilities are already well calibrated (mean PD 15.2% vs 15.2%
   observed). An isotonic calibrator is still fitted for every model.
-* **Empirical cost ratio from real cash flows (training loans):** a default loses $4,996
+* **Empirical cost ratio from real cash flows (training loans):** a default loses $5,001
   on average (38% of principal, net of payments before charge-off and recoveries). A repaid
-  loan earns $2,283 (16.7%). That puts the cost ratio at **≈ 2.2 : 1**, far below the 10 : 1
+  loan earns $2,311 (16.8%). That puts the cost ratio at **≈ 2.2 : 1**, far below the 10 : 1
   used as an example in the brief.
 * The optimal threshold on validation tracks the Bayes rule PD* = 1/(1+ratio). It falls from
-  0.43 at 1:1 to 0.09 at 10:1 and 0.045 at 20:1, and the approval rate falls from 99.6% to 34%
-  to 11%.
+  0.485 at 1:1 to 0.085 at 10:1 and 0.035 at 20:1, and the approval rate falls from 99.6% to
+  32% to 10%.
 * **Policies valued with each test loan's actual outcome:**
 
 | Policy | Approval | Default rate of approved | Net profit (45k applicants) |
 |---|---|---|---|
-| Approve everyone (status quo) | 100% | 15.2% | $52.58M |
-| Grades A-C only | 80% | 12.2% | $39.80M |
-| Model, 10:1 cost-optimal (PD < 0.09) | 34% | 5.7% | $17.86M |
-| Model, empirical 2.2:1 (PD < 0.31) | 91% | 13.1% | $49.72M |
-| **Model, loan-level expected value** | **97%** | **14.4%** | **$52.99M (+$0.41M)** |
+| Approve everyone (status quo) | 100% | 15.2% | $53.62M |
+| Grades A-C only | 80% | 12.2% | $40.96M |
+| Model, 10:1 cost-optimal (PD < 0.085) | 32% | 5.6% | $17.23M |
+| Model, empirical 2.2:1 (PD < 0.30) | 92% | 13.2% | $51.21M |
+| Model, best single cut-off (PD < 0.485) | 99.6% | 15.1% | $53.88M (+$0.26M) |
+| **Model, loan-level expected value** | **97%** | **14.6%** | **$54.04M (+$0.42M)** |
 
   Lending Club's interest rates already price risk: the break-even PD rises from about 20%
-  for grade A to about 60% for grade G (60-month loans). So a single PD cut-off, or a
-  grade-only rule, throws away profitable high-yield loans. The recommended rule approves a
-  loan only when PD < gain / (gain + loss) for its grade and term. It is the only policy that
-  beats approving everyone on realised profit.
+  for grade A to about 60% for grade G (60-month loans). So a strict single PD cut-off, or a
+  grade-only rule, throws away profitable high-yield loans. The best single cut-off only
+  gains by declining almost nobody. The recommended rule approves a loan only when
+  PD < gain / (gain + loss) for its grade and term. It gives the highest realised profit of
+  all the policies.
 
 ---
 
@@ -290,12 +309,12 @@ Glass-box views: the decision-tree rules and the logistic-regression coefficient
 ├── src/
 │   ├── config.py                 # paths, seed, leakage column list, settings
 │   ├── download_data.py          # Kaggle download
-│   ├── data_prep.py              # target, matured vintages, leakage removal, sampling, split
+│   ├── data_prep.py              # target, matured vintages, one loan per borrower, leakage, sampling, split
 │   ├── features.py               # feature engineering, missing-value strategy, preprocessor
 │   ├── eda.py                    # exploratory data analysis
 │   ├── models.py                 # model factory, metrics, LoanModel wrapper
 │   ├── train_benchmark.py        # training, tuning, benchmarking, PCA analysis
-│   ├── borrower_check.py         # repeat-borrower check and its effect on test AUC
+│   ├── borrower_check.py         # repeat borrowers left and their effect on test ROC-AUC
 │   ├── sampling_check.py         # learning curve on the full population
 │   ├── analysis_ablation.py      # Analysis A
 │   ├── analysis_efficiency.py    # Analysis C

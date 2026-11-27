@@ -8,8 +8,8 @@ Columns: 151
 
 Lending Club was a US peer-to-peer lender (a genuine, SEC-registered lending
 institution), so the data satisfies the "real lender, >=100k borrowers,
->=50 features" requirement of the project brief (see src/borrower_check.py
-for the repeat-borrower check).
+>=50 features" requirement of the project brief. data_prep keeps one loan per
+borrower; src/borrower_check.py measures the repeat borrowers that may be left.
 
 Requires a Kaggle API token in ~/.kaggle/kaggle.json
 (Kaggle -> Account -> "Create New API Token").

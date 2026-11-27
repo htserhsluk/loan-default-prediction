@@ -355,7 +355,7 @@ def write_memo(s, thr, pol, mc, econ):
         f"{t(r)['approval_rate']:.1%} | {t(r)['default_rate_approved']:.1%} |"
         for r in (1, 2, 3, 5, 10, 20))
     rows_econ = "\n".join(
-        f"| {g} | {tm} | {r.n_loans:,} | {r.default_rate:.1%} | {r.gain_frac_if_repaid:.1%} | "
+        f"| {g} | {tm} | {int(r.n_loans):,} | {r.default_rate:.1%} | {r.gain_frac_if_repaid:.1%} | "
         f"{r.loss_frac_if_default:.1%} | {r.implied_cost_ratio:.1f} : 1 | {r.breakeven_pd:.1%} |"
         for (g, tm), r in e.iterrows())
 

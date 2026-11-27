@@ -7,10 +7,10 @@ Run the complete project pipeline end-to-end.
 
 Steps (in order):
   download     download the Lending Club file from Kaggle (skipped if present)
-  prep         target, matured-vintage filter, leakage removal, sampling, split
+  prep         target, matured vintages, one loan per borrower, leakage, sampling, split
   eda          exploratory data analysis figures / tables
   benchmark    train + evaluate all models, PCA analysis
-  borrowers    repeat-borrower check (member_id is blank) and its effect on test AUC
+  borrowers    repeat borrowers left after dedup and their effect on test ROC-AUC
   sampling     learning curve on the full population (sampling justification)
   ablation     Analysis A - feature analysis & ablation
   efficiency   Analysis C - model efficiency

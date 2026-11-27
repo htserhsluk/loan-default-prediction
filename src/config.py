@@ -90,6 +90,11 @@ ID_TEXT_COLS = [
     "policy_code",
 ]
 
+# Lending Club publishes no borrower ID. data_prep treats loans that share all of
+# these (fixed for a person between applications) as one borrower and keeps only
+# that borrower's first loan. The job title is lower-cased and trimmed first.
+BORROWER_KEY = ["earliest_cr_line", "zip_code", "emp_title"]
+
 # Post-loan $ outcome columns kept separately ONLY for the cost-sensitive
 # financial analysis (never used as model features).
 OUTCOME_COLS = ["loan_amnt", "total_pymnt", "recoveries",
