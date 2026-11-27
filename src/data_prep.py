@@ -50,8 +50,8 @@ def load_resolved_matured() -> tuple[pd.DataFrame, pd.DataFrame, int]:
     max_last_pymnt = pd.Timestamp("1900-01-01")
 
     for i, chunk in enumerate(pd.read_csv(RAW_FILE, chunksize=CHUNK, low_memory=False)):
+        chunk = chunk[chunk["loan_status"].notna()].copy()   # drops summary/footer lines
         n_raw += len(chunk)
-        chunk = chunk[chunk["loan_status"].notna()].copy()
         chunk["issue_d"] = pd.to_datetime(chunk["issue_d"], format="%b-%Y", errors="coerce")
         last = pd.to_datetime(chunk["last_pymnt_d"], format="%b-%Y", errors="coerce")
         max_last_pymnt = max(max_last_pymnt, last.max())

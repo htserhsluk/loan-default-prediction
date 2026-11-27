@@ -3,12 +3,13 @@ Download the Lending Club accepted-loans dataset (2007 - 2018Q4) from Kaggle.
 
 Source : https://www.kaggle.com/datasets/wordsforthewise/lending-club
 File   : accepted_2007_to_2018Q4.csv.gz  (~390 MB compressed, ~1.6 GB raw)
-Rows   : ~2.26 million loans (one row per borrower / loan)
+Rows   : 2,260,668 loans (one row per loan application; member_id is blank)
 Columns: 151
 
 Lending Club was a US peer-to-peer lender (a genuine, SEC-registered lending
 institution), so the data satisfies the "real lender, >=100k borrowers,
->=50 features" requirement of the project brief.
+>=50 features" requirement of the project brief (see src/borrower_check.py
+for the repeat-borrower check).
 
 Requires a Kaggle API token in ~/.kaggle/kaggle.json
 (Kaggle -> Account -> "Create New API Token").

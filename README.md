@@ -14,11 +14,19 @@ make better-informed approval decisions.
 |---|---|
 | Source | Lending Club accepted loans 2007-2018Q4, Kaggle [`wordsforthewise/lending-club`](https://www.kaggle.com/datasets/wordsforthewise/lending-club) |
 | Institution | Lending Club, a US peer-to-peer lender registered with the SEC (a genuine lender, not a toy or benchmark dataset) |
-| Size | **2,260,701 loans × 151 columns**, one row per borrower / loan |
+| Size | **2,260,668 loans × 151 columns**, one row per loan (one borrower's application) |
 | Target | `default = 1` for *Charged Off / Default*, `0` for *Fully Paid* |
 
-The dataset meets every requirement in the brief: at least 100k borrowers, 50+ features,
-one row per borrower, and a real lender.
+The dataset meets the brief's requirements: a real lender, far more than 100k borrowers,
+50+ features, and one row per loan application (not monthly payment records). Lending Club
+does not publish a borrower ID (`member_id` is blank in all 2,260,668 rows), so a borrower who
+took two loans cannot be identified exactly. Item 7 below measures how much that could matter.
+
+**Scope of the model.** It scores loans that Lending Club approved, at the point where Lending
+Club had already assigned a grade and interest rate. The results do not cover rejected
+applicants or decisions made before pricing. Without Lending Club's grade, sub-grade and rate,
+the boosted models lose only 0.7-1.0 AUC points (Analysis A), so most of the signal comes from
+the applicant's own credit file.
 
 ### Data-handling decisions (all justified in the code and figures)
 1. **Only loans with a final outcome.** *Current / Late / In Grace Period* loans are
@@ -35,7 +43,7 @@ one row per borrower, and a real lender.
    AUC of up to 0.9996, while the best genuine application variable reaches only 0.67.
    We also drop identifiers and free text (`id`, `url`, `desc`, `title`, `emp_title`,
    `zip_code`).
-4. **Sampling.** We draw a stratified random sample of **300,000 borrowers**, stratified on
+4. **Sampling.** We draw a stratified random sample of **300,000 loans**, stratified on
    issue-year × term × outcome. All KS tests against the population give p > 0.5, and the
    total-variation distance for categorical variables is ≤ 0.002
    (`sample_representativeness.csv`). A learning curve on the full population
@@ -55,6 +63,16 @@ one row per borrower, and a real lender.
 6. **Split.** 70 / 15 / 15 stratified train / validation / test. The validation set is used
    for tuning, early stopping, threshold choice and calibration. The test set is used
    only for reporting.
+7. **Repeat borrowers** (`src/borrower_check.py`). Loan `id` is unique, but there is no
+   borrower ID. We matched loans on attributes that stay fixed for a person: first-credit
+   month, 3-digit ZIP and job title, plus stated income for the strict version.
+   * Possible repeat loans: **0.54%** of the 779k cohort with the strict key, and at most
+     3.5% with the loose key, which over-matches common job titles.
+   * Only 168 (strict) or 1,110 (loose) of the 45,000 test loans share a key with a training
+     or validation loan.
+   * Removing them changes every model's test AUC by **at most 0.0005**
+     (`borrower_check.json`, `borrower_check_auc.csv`). Possible same-borrower overlap
+     between splits therefore does not affect any result.
 
 Final feature set: **83 raw features** (76 numeric, 7 categorical), which become
 **136 model inputs** after one-hot encoding. Engineered features include FICO midpoint,
@@ -115,8 +133,10 @@ all 679k available rows it reaches 0.713. Tripling the data (and training time) 
 ## 3. Additional analyses (3 of 6 chosen: A, C, F)
 
 ### A. Feature analysis & ablation (`src/analysis_ablation.py`, `reports/figures/analysis_A_ablation/`)
-We ran 25 feature configurations × 9 models. Each configuration was trained on the same
-stratified 30k subsample and evaluated on the full 45k test set.
+We ran 25 feature configurations for all 9 models: 221 fits in total. In the 4
+PCA-component configurations, PCA + LR is skipped because it would duplicate Logistic
+Regression trained on the same components. Each fit used the same stratified 30k training
+subsample and was evaluated on the full 45k test set.
 
 | Removed group | Mean ΔAUC over 9 models (×100) |
 |---|---|
@@ -147,7 +167,7 @@ stratified 30k subsample and evaluated on the full 45k test set.
   benefits from the flags (+0.19).
 
 ### C. Model efficiency (`src/analysis_efficiency.py`, `reports/figures/analysis_C_efficiency/`)
-| Model | Test AUC | Train (s) | Tuning total (s) | Batch inference (µs/row) | 1 applicant (ms) | Size (MB) | Trees / nodes | Scaling exponent |
+| Model | Test AUC | Train (s) | Tuning total (s) | Batch inference (µs/row) | 1 applicant, model only (ms) | Size (MB) | Trees / nodes | Scaling exponent |
 |---|---|---|---|---|---|---|---|---|
 | Logistic Regression | 0.701 | 1.0 | 1.8 | 0.26 | 0.26 | 0.005 | 137 coef. | 1.01 |
 | PCA + LR | 0.698 | 0.4 | 1.3 | 0.40 | 0.30 | 0.05 | 86 PCs | 0.95 |
@@ -159,13 +179,13 @@ stratified 30k subsample and evaluated on the full 45k test set.
 | LightGBM | 0.709 | 20.4 | 20.4 | 8.4 | 0.58 | 2.3 | 651 / 39.7k | 0.50 |
 | **CatBoost** | **0.710** | 63.4 | 63.4 | 0.62 | 0.17 | 1.3 | 1,059 / 134k | 0.62 |
 
-*Train time is the benchmark fit on 210k rows on an 8-core laptop (early stopping included). Tuning total is the sum of all grid fits. The scaling exponent is the slope of log(train time) vs log(rows) over 10k-210k with fixed hyper-parameters. These are single-run timings, so expect ±20-50% noise (e.g. XGBoost's 210k point).*
+*Train time is the benchmark fit on 210k rows on an 8-core laptop (early stopping included). Tuning total is the sum of all grid fits. The scaling exponent is the slope of log(train time) vs log(rows) over 10k-210k with fixed hyper-parameters. Batch and single-applicant times cover the model step only, on already-preprocessed input. Preprocessing one applicant adds about 6-12 ms for every model, so end-to-end scoring of one applicant takes about 6 ms with CatBoost. These are single-run timings, so expect ±20-50% noise (e.g. XGBoost's 210k point).*
 
 * **CatBoost is on all three Pareto frontiers** (AUC vs training time, inference time and
-  size). It is the most accurate model, is tiny (1.3 MB), and scores one applicant in
-  0.17 ms thanks to its symmetric (oblivious) trees.
+  size). It is the most accurate model, is tiny (1.3 MB), and its model step scores one
+  applicant in 0.17 ms thanks to its symmetric (oblivious) trees.
 * **Random Forest is the least efficient model.** It is 94 MB (fully grown trees, 1.17M
-  nodes), takes 27 ms to score a single applicant (parallel-dispatch overhead), and its
+  nodes), its model step takes 27 ms for a single applicant (parallel-dispatch overhead), and its
   training time grows super-linearly (exponent 1.42) because the trees get deeper with
   more data. On AUC it only matches the 5 KB Logistic Regression.
 * **AdaBoost and sklearn Gradient Boosting** train slowest, because they are single-threaded
@@ -206,8 +226,9 @@ Glass-box views: the decision-tree rules and the logistic-regression coefficient
   * A *low-risk repayer* with PD 0.8%: grade A1, FICO 837, DTI 6%, 2% revolving
     utilisation.
   * A *missed default* with PD 2.4%: grade A1, 5.3% rate, DTI 9%. On paper this applicant
-    looks safe. Such defaults are driven by events after origination (job loss, illness)
-    that no application-time model can see.
+    looks safe. The data do not record why the loan defaulted. Possible causes include
+    events after origination, such as job loss or illness, that no application-time model
+    can see.
 * **Caveat:** PDP / ICE change one input while holding correlated inputs fixed (e.g. interest
   rate without sub-grade), so the extremes of some curves (very high incomes) are
   extrapolations into sparse regions.
@@ -247,7 +268,9 @@ Glass-box views: the decision-tree rules and the logistic-regression coefficient
   cost ratio. The page also shows a per-applicant explanation (SHAP or coefficient
   contributions) and a what-if curve for any input.
 * **Batch scoring**: upload a CSV in the raw Lending Club format and download it with PDs and
-  decisions added. An example file can be downloaded from the app.
+  decisions added. `loan_amnt` and `annual_inc` are required. A missing `installment` is
+  computed from amount, rate and term. Any other missing input is set to the typical training
+  value, and the app lists which ones. An example file can be downloaded from the app.
 * **Model benchmark**: leaderboard by any metric, interactive ROC / PR curves, a threshold
   explorer with a live confusion matrix and score distributions, and the tuning log.
 * **Lending policy simulator**: choose a cost-ratio cut-off or the expected-value rule and see
@@ -268,6 +291,7 @@ Glass-box views: the decision-tree rules and the logistic-regression coefficient
 │   ├── eda.py                    # exploratory data analysis
 │   ├── models.py                 # model factory, metrics, LoanModel wrapper
 │   ├── train_benchmark.py        # training, tuning, benchmarking, PCA analysis
+│   ├── borrower_check.py         # repeat-borrower check and its effect on test AUC
 │   ├── sampling_check.py         # learning curve on the full population
 │   ├── analysis_ablation.py      # Analysis A
 │   ├── analysis_efficiency.py    # Analysis C

@@ -32,7 +32,8 @@ sys.path.insert(0, str(ROOT))
 
 from src.config import (FIG_DIR, MODELS_DIR, OUTCOME_FILE, REPORTS_DIR,  # noqa: E402
                         SAMPLE_FILE, TABLE_DIR)
-from src.features import engineer, load_splits, onehot_source  # noqa: E402
+from src.features import (REQUIRED_APPLICANT_COLS, load_splits, onehot_source,  # noqa: E402
+                          prepare_applicants)
 from src.models import MODEL_ORDER  # noqa: E402
 from src.plotting import GRID, INK_2, MODEL_COLORS, MUTED, SLOTS  # noqa: E402
 from src.train_benchmark import slug  # noqa: E402
@@ -207,6 +208,7 @@ if page == "Overview":
     st.write("We are the analytics team of a lending institution. Using **real Lending Club "
              "loan data**, we predict which applicants will default (charged-off) so that the "
              "lender can make better-informed approval decisions.")
+    st.caption("**Scope:** the model scores loans Lending Club approved, after Lending Club had assigned a grade and interest rate. It has not been validated for rejected applicants or for decisions made before pricing.")
     summ = load_table("data_summary.json")
     b = bench.set_index("model")
     c = st.columns(5)
@@ -248,7 +250,7 @@ if page == "Overview":
 elif page == "Score an applicant":
     st.title("Score a loan applicant")
     st.caption("Enter the application details. Bureau attributes not shown here are set to "
-               "the typical (median) applicant from the training data.")
+               "the typical (median) applicant from the training data. " + "**Scope:** the model scores loans Lending Club approved, after Lending Club had assigned a grade and interest rate. It has not been validated for rejected applicants or for decisions made before pricing.")
 
     sub_grades = [g + str(i) for g in "ABCDEFG" for i in range(1, 6)]
     with st.container(border=True):
@@ -422,10 +424,14 @@ elif page == "Score an applicant":
 # ==========================================================================
 elif page == "Batch scoring":
     st.title("Batch scoring")
-    st.write("Upload a CSV with applicants in the **original Lending Club column format** "
-             "(e.g. `loan_amnt, term, int_rate, grade, sub_grade, emp_length, annual_inc, "
-             "fico_range_low, earliest_cr_line, issue_d, ...`). Missing columns are filled with "
-             "typical values. Post-loan columns, if present, are ignored.")
+    st.write("Upload a CSV with applicants in the **original Lending Club column format**. "
+             "**Required:** `loan_amnt`, `annual_inc`. **Recommended:** `term`, `int_rate`, "
+             "`installment`, `grade`, `sub_grade`, `emp_length`, `home_ownership`, `purpose`, "
+             "`dti`, `fico_range_low`, `fico_range_high`, `earliest_cr_line`, `issue_d`, "
+             "`revol_bal`, `revol_util` and the other credit-bureau fields. If `installment` is "
+             "missing it is computed from amount, rate and term. Any other missing input is set "
+             "to the typical training value, and the app lists which ones. Post-loan columns, "
+             "if present, are ignored.")
 
     sample = pd.read_parquet(SAMPLE_FILE)
     split = json.loads((ROOT / "data/processed/split_indices.json").read_text())
@@ -439,13 +445,19 @@ elif page == "Batch scoring":
     ratio = st.slider("Cost ratio (FN : FP) for the decision", 1.0, 20.0, 4.0, 0.5)
     if up is not None and model_sel:
         raw = pd.read_csv(up, low_memory=False)
-        if "issue_d" in raw:
-            raw["issue_d"] = pd.to_datetime(raw["issue_d"], format="%b-%Y", errors="coerce")
-        eng = engineer(raw)
-        for c in spec["numeric"] + spec["categorical"]:
-            if c not in eng:
-                eng[c] = template[c]
-        X = eng[spec["numeric"] + spec["categorical"]]
+        X, filled, missing = prepare_applicants(raw, spec, template)
+        if missing:
+            st.error("The file is missing required column(s): "
+                     + ", ".join(f"`{c}`" for c in missing)
+                     + f". Required: {', '.join(REQUIRED_APPLICANT_COLS)}.")
+            st.stop()
+        if filled:
+            n_all = len(spec["numeric"]) + len(spec["categorical"])
+            st.warning(f"{len(filled)} of {n_all} model inputs were not in the file and were set "
+                       "to the typical training value. Predictions are less specific to each "
+                       "applicant when many inputs are filled.")
+            with st.expander("Inputs filled with typical values"):
+                st.write(", ".join(f"{nice(c)} (`{c}`)" for c in filled))
         out = raw.copy()
         for n in model_sel:
             p = score(models, cals, X, n)
@@ -714,7 +726,9 @@ elif page == "Data & EDA":
     summ = load_table("data_summary.json")
     st.markdown(f"""
 **Source:** Lending Club accepted loans 2007-2018Q4 (Kaggle `wordsforthewise/lending-club`):
-{summ['raw_rows']:,} loans × {summ['raw_columns']} columns, one row per borrower.
+{summ['raw_rows']:,} loans × {summ['raw_columns']} columns, one row per loan application.
+Lending Club publishes no borrower ID (`member_id` is blank), so repeat borrowers are checked
+separately (see *Repeat borrowers* below).
 
 **Target:** `default = 1` if the loan was *Charged Off / Default*, `0` if *Fully Paid*.
 Loans still *Current / Late / In grace period* have no final outcome and are excluded.
@@ -723,7 +737,7 @@ Loans still *Current / Late / In grace period* have no final outcome and are exc
 falls on or before the data snapshot (Mar-2019). This leaves {summ['matured_resolved_loans']:,}
 loans with a default rate of {summ['population_default_rate']:.1%}.
 
-**Sample:** a stratified random sample of {summ['sample_size']:,} borrowers (issue-year × term ×
+**Sample:** a stratified random sample of {summ['sample_size']:,} loans (issue-year × term ×
 outcome), split {summ['train']:,} / {summ['val']:,} / {summ['test']:,} (train / validation / test).
 """)
     t = st.tabs(["Vintages & sampling", "Leakage", "Missing values", "Distributions",
@@ -739,6 +753,28 @@ outcome), split {summ['train']:,} / {summ['val']:,} / {summ['test']:,} (train / 
                             "distance for categorical)")
                 st.dataframe(load_table("sample_representativeness.csv").round(4),
                              hide_index=True, width="stretch")
+        if has("borrower_check.json"):
+            bc = load_table("borrower_check.json")
+            st.markdown("#### Repeat borrowers")
+            st.markdown(
+                f"`member_id` is filled in **{bc['member_id_non_missing']:,}** of "
+                f"{bc['raw_loans']:,} loans, and the loan `id` is "
+                f"{'unique' if bc['loan_id_unique'] else 'NOT unique'}. We matched loans on "
+                "attributes that stay fixed for a person: first-credit month, 3-digit ZIP and "
+                "job title, plus stated income for the strict key.")
+            k = st.columns(3)
+            k[0].metric("Repeat loans (strict)",
+                        f"{bc['strict']['possible_repeat_pct']:.2%}")
+            k[1].metric("Upper bound (loose)", f"{bc['loose']['possible_repeat_pct']:.2%}")
+            k[2].metric("Max test-AUC change", f"{bc['max_abs_auc_change']:.4f}")
+            st.caption(f"{bc['strict']['test_loans_sharing_key_with_train_val']:,} (strict) / "
+                       f"{bc['loose']['test_loans_sharing_key_with_train_val']:,} (loose) of the "
+                       "45,000 test loans share a key with a training or validation loan. "
+                       "Removing them leaves every model's test AUC essentially unchanged.")
+            if has("borrower_check_auc.csv"):
+                with st.expander("Test AUC with and without possible repeat borrowers"):
+                    st.dataframe(load_table("borrower_check_auc.csv").round(4),
+                                 hide_index=True, width="stretch")
     with t[1]:
         st.markdown("Columns recorded **after** the loan is issued would leak the outcome. "
                     "A single such column predicts default almost perfectly, so all of them "

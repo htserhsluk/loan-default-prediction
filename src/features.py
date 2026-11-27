@@ -134,6 +134,13 @@ def engineer(df: pd.DataFrame) -> pd.DataFrame:
         d["emp_length_num"] = emp.map(EMP_MAP).astype(float)
         d["emp_length_missing"] = d["emp_length_num"].isna().astype(int)
 
+    # monthly instalment can be derived from amount, rate and term (annuity formula)
+    if "installment" not in d and {"loan_amnt", "int_rate", "term_months"} <= set(d.columns):
+        r = d["int_rate"] / 1200
+        n = d["term_months"]
+        d["installment"] = np.where(r > 0, d["loan_amnt"] * r / (1 - (1 + r) ** (-n)),
+                                    d["loan_amnt"] / n)
+
     if "grade" in d:
         d["grade_num"] = d["grade"].map({g: i + 1 for i, g in enumerate(GRADES)}).astype(float)
     if "sub_grade" in d:
@@ -143,6 +150,10 @@ def engineer(df: pd.DataFrame) -> pd.DataFrame:
     # --- credit score & history ------------------------------------------------
     if {"fico_range_low", "fico_range_high"} <= set(d.columns):
         d["fico_score"] = (d["fico_range_low"] + d["fico_range_high"]) / 2
+    elif "fico_range_low" in d:                  # LC ranges are 4 points wide
+        d["fico_score"] = d["fico_range_low"] + 2
+    elif "fico_range_high" in d:
+        d["fico_score"] = d["fico_range_high"] - 2
     if {"earliest_cr_line", "issue_d"} <= set(d.columns):
         ecl = pd.to_datetime(d["earliest_cr_line"], format="%b-%Y", errors="coerce")
         iss = pd.to_datetime(d["issue_d"])
@@ -151,11 +162,16 @@ def engineer(df: pd.DataFrame) -> pd.DataFrame:
 
     # --- affordability ratios ---------------------------------------------------
     # (clipped: a handful of applicants state an income of only a few dollars)
-    inc = d["annual_inc"].replace(0, np.nan)
-    d["loan_to_income"] = (d["loan_amnt"] / inc).clip(upper=5)
-    d["installment_to_income"] = (d["installment"] * 12 / inc).clip(upper=2)
-    if "revol_bal" in d:
-        d["revol_bal_to_income"] = (d["revol_bal"] / inc).clip(upper=10)
+    # Each ratio is only built when its inputs exist, so a partial applicant
+    # file does not crash; absent features are filled later by the caller.
+    if "annual_inc" in d:
+        inc = d["annual_inc"].replace(0, np.nan)
+        if "loan_amnt" in d:
+            d["loan_to_income"] = (d["loan_amnt"] / inc).clip(upper=5)
+        if "installment" in d:
+            d["installment_to_income"] = (d["installment"] * 12 / inc).clip(upper=2)
+        if "revol_bal" in d:
+            d["revol_bal_to_income"] = (d["revol_bal"] / inc).clip(upper=10)
 
     # --- informative missingness ----------------------------------------------
     for c in MTHS_SINCE:
@@ -168,6 +184,35 @@ def engineer(df: pd.DataFrame) -> pd.DataFrame:
 
     d = d.drop(columns=[c for c in ALWAYS_DROP if c in d.columns])
     return d
+
+
+# --------------------------------------------------------------------------
+# Applicant files uploaded in the UI (batch scoring)
+# --------------------------------------------------------------------------
+REQUIRED_APPLICANT_COLS = ["loan_amnt", "annual_inc"]
+
+
+def prepare_applicants(raw: pd.DataFrame, spec: dict, template: dict):
+    """Turn an uploaded file in Lending Club format into model inputs.
+
+    Returns (X, filled, missing_required):
+      missing_required  required columns absent from the file (X is None then)
+      filled            model inputs absent from the file, set to the typical
+                        (median / most frequent) training value
+    The instalment is derived from amount, rate and term when it is absent.
+    """
+    missing = [c for c in REQUIRED_APPLICANT_COLS if c not in raw.columns]
+    if missing:
+        return None, [], missing
+    d = raw.copy()
+    if "issue_d" in d and not pd.api.types.is_datetime64_any_dtype(d["issue_d"]):
+        d["issue_d"] = pd.to_datetime(d["issue_d"], format="%b-%Y", errors="coerce")
+    eng = engineer(d)
+    cols = spec["numeric"] + spec["categorical"]
+    filled = [c for c in cols if c not in eng.columns]
+    for c in filled:
+        eng[c] = template[c]
+    return eng[cols], filled, []
 
 
 # --------------------------------------------------------------------------

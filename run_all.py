@@ -10,6 +10,7 @@ Steps (in order):
   prep         target, matured-vintage filter, leakage removal, sampling, split
   eda          exploratory data analysis figures / tables
   benchmark    train + evaluate all models, PCA analysis
+  borrowers    repeat-borrower check (member_id is blank) and its effect on test AUC
   sampling     learning curve on the full population (sampling justification)
   ablation     Analysis A - feature analysis & ablation
   efficiency   Analysis C - model efficiency
@@ -28,6 +29,7 @@ STEPS = [
     ("prep", "src.data_prep"),
     ("eda", "src.eda"),
     ("benchmark", "src.train_benchmark"),
+    ("borrowers", "src.borrower_check"),
     ("sampling", "src.sampling_check"),
     ("ablation", "src.analysis_ablation"),
     ("efficiency", "src.analysis_efficiency"),
