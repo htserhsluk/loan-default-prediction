@@ -2,20 +2,20 @@
   "best_model": "CatBoost",
   "calibration": {
     "model": "CatBoost",
-    "brier_raw": 0.11912961458610927,
-    "brier_calibrated": 0.11924837175309361,
-    "auc_raw": 0.7102132357369536,
-    "auc_calibrated": 0.7098029587507354,
-    "mean_pd_raw": 0.15232621858818307,
-    "mean_pd_calibrated": 0.15196247329336857,
-    "observed_default_rate": 0.15195555555555557
+    "brier_raw": 0.11934254677477987,
+    "brier_calibrated": 0.11940648080581842,
+    "auc_raw": 0.7085116745682025,
+    "auc_calibrated": 0.7084790568905799,
+    "mean_pd_raw": 0.15243559901556017,
+    "mean_pd_calibrated": 0.15297014213840077,
+    "observed_default_rate": 0.15233333333333332
   },
-  "empirical_cost_ratio": 2.1883127108461755,
-  "avg_loss_per_default": 4996.4956402381285,
-  "avg_profit_per_good": 2283.2640031168517,
-  "loss_given_default_pct": 0.3766639747816763,
-  "margin_on_good_pct": 0.1671295760204909,
-  "threshold_10_to_1": 0.09,
-  "threshold_empirical": 0.31,
-  "threshold_profit_opt": 0.425
+  "empirical_cost_ratio": 2.1637196984053455,
+  "avg_loss_per_default": 5001.1451948754975,
+  "avg_profit_per_good": 2311.3646368156305,
+  "loss_given_default_pct": 0.3751736996248742,
+  "margin_on_good_pct": 0.1683932198812998,
+  "threshold_10_to_1": 0.085,
+  "threshold_empirical": 0.3,
+  "threshold_profit_opt": 0.485
 }

@@ -1,94 +1,94 @@
 |--- sub_grade_num <= 10.50
-|   |--- grade_num <= 1.50
-|   |   |--- sub_grade_num <= 2.50
-|   |   |   |--- dti <= 23.51
+|   |--- sub_grade_num <= 6.50
+|   |   |--- sub_grade_num <= 4.50
+|   |   |   |--- annual_inc <= 66050.00
+|   |   |   |   |--- fico_score <= 749.50
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |   |   |--- fico_score >  749.50
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |   |--- annual_inc >  66050.00
 |   |   |   |   |--- fico_score <= 744.50
 |   |   |   |   |   |--- truncated branch of depth 2
 |   |   |   |   |--- fico_score >  744.50
 |   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |--- dti >  23.51
-|   |   |   |   |--- fico_score <= 719.50
+|   |   |--- sub_grade_num >  4.50
+|   |   |   |--- emp_length_missing <= 0.50
+|   |   |   |   |--- avg_cur_bal <= 24560.50
 |   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |   |--- fico_score >  719.50
+|   |   |   |   |--- avg_cur_bal >  24560.50
 |   |   |   |   |   |--- truncated branch of depth 2
-|   |   |--- sub_grade_num >  2.50
+|   |   |   |--- emp_length_missing >  0.50
+|   |   |   |   |--- acc_open_past_24mths <= 3.50
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |   |   |--- acc_open_past_24mths >  3.50
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |--- sub_grade_num >  6.50
+|   |   |--- avg_cur_bal <= 9611.50
 |   |   |   |--- acc_open_past_24mths <= 4.50
-|   |   |   |   |--- annual_inc <= 43708.00
+|   |   |   |   |--- annual_inc <= 42999.50
 |   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |   |--- annual_inc >  43708.00
+|   |   |   |   |--- annual_inc >  42999.50
 |   |   |   |   |   |--- truncated branch of depth 2
 |   |   |   |--- acc_open_past_24mths >  4.50
-|   |   |   |   |--- mort_acc <= 1.50
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |   |--- mort_acc >  1.50
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |--- grade_num >  1.50
-|   |   |--- acc_open_past_24mths <= 4.50
-|   |   |   |--- tot_cur_bal <= 84884.00
-|   |   |   |   |--- emp_length_missing <= 0.50
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |   |--- emp_length_missing >  0.50
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |--- tot_cur_bal >  84884.00
 |   |   |   |   |--- sub_grade_num <= 8.50
 |   |   |   |   |   |--- truncated branch of depth 2
 |   |   |   |   |--- sub_grade_num >  8.50
 |   |   |   |   |   |--- truncated branch of depth 2
-|   |   |--- acc_open_past_24mths >  4.50
-|   |   |   |--- avg_cur_bal <= 8655.50
-|   |   |   |   |--- loan_to_income <= 0.18
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |   |--- loan_to_income >  0.18
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |--- avg_cur_bal >  8655.50
-|   |   |   |   |--- installment_to_income <= 0.08
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |   |--- installment_to_income >  0.08
-|   |   |   |   |   |--- truncated branch of depth 2
-|--- sub_grade_num >  10.50
-|   |--- grade_num <= 4.50
-|   |   |--- sub_grade_num <= 14.50
-|   |   |   |--- home_ownership_MORTGAGE <= 0.50
-|   |   |   |   |--- acc_open_past_24mths <= 6.50
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |   |--- acc_open_past_24mths >  6.50
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |--- home_ownership_MORTGAGE >  0.50
-|   |   |   |   |--- loan_to_income <= 0.12
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |   |--- loan_to_income >  0.12
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |   |--- sub_grade_num >  14.50
-|   |   |   |--- loan_to_income <= 0.14
-|   |   |   |   |--- mort_acc <= 1.50
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |   |--- mort_acc >  1.50
-|   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |--- loan_to_income >  0.14
+|   |   |--- avg_cur_bal >  9611.50
+|   |   |   |--- sub_grade_num <= 8.50
 |   |   |   |   |--- acc_open_past_24mths <= 4.50
 |   |   |   |   |   |--- truncated branch of depth 2
 |   |   |   |   |--- acc_open_past_24mths >  4.50
 |   |   |   |   |   |--- truncated branch of depth 2
-|   |--- grade_num >  4.50
-|   |   |--- installment_to_income <= 0.05
-|   |   |   |--- mo_sin_old_rev_tl_op <= 173.50
-|   |   |   |   |--- acc_open_past_24mths <= 5.50
+|   |   |   |--- sub_grade_num >  8.50
+|   |   |   |   |--- emp_title_missing <= 0.50
 |   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |   |--- acc_open_past_24mths >  5.50
+|   |   |   |   |--- emp_title_missing >  0.50
 |   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |--- mo_sin_old_rev_tl_op >  173.50
-|   |   |   |   |--- loan_to_income <= 0.06
-|   |   |   |   |   |--- class: 0
-|   |   |   |   |--- loan_to_income >  0.06
+|--- sub_grade_num >  10.50
+|   |--- sub_grade_num <= 18.50
+|   |   |--- sub_grade_num <= 13.50
+|   |   |   |--- acc_open_past_24mths <= 3.50
+|   |   |   |   |--- emp_length_missing <= 0.50
 |   |   |   |   |   |--- truncated branch of depth 2
-|   |   |--- installment_to_income >  0.05
-|   |   |   |--- acc_open_past_24mths <= 4.50
+|   |   |   |   |--- emp_length_missing >  0.50
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |   |--- acc_open_past_24mths >  3.50
+|   |   |   |   |--- home_ownership_RENT <= 0.50
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |   |   |--- home_ownership_RENT >  0.50
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |--- sub_grade_num >  13.50
+|   |   |   |--- acc_open_past_24mths <= 6.50
+|   |   |   |   |--- loan_to_income <= 0.20
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |   |   |--- loan_to_income >  0.20
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |   |--- acc_open_past_24mths >  6.50
+|   |   |   |   |--- loan_to_income <= 0.09
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |   |   |--- loan_to_income >  0.09
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |--- sub_grade_num >  18.50
+|   |   |--- installment_to_income <= 0.08
+|   |   |   |--- acc_open_past_24mths <= 5.50
 |   |   |   |   |--- sub_grade_num <= 28.50
 |   |   |   |   |   |--- truncated branch of depth 2
 |   |   |   |   |--- sub_grade_num >  28.50
+|   |   |   |   |   |--- class: 0
+|   |   |   |--- acc_open_past_24mths >  5.50
+|   |   |   |   |--- installment_to_income <= 0.02
+|   |   |   |   |   |--- class: 0
+|   |   |   |   |--- installment_to_income >  0.02
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |--- installment_to_income >  0.08
+|   |   |   |--- acc_open_past_24mths <= 4.50
+|   |   |   |   |--- sub_grade_num <= 23.50
+|   |   |   |   |   |--- truncated branch of depth 2
+|   |   |   |   |--- sub_grade_num >  23.50
 |   |   |   |   |   |--- truncated branch of depth 2
 |   |   |   |--- acc_open_past_24mths >  4.50
-|   |   |   |   |--- tot_hi_cred_lim <= 296281.50
+|   |   |   |   |--- int_rate <= 22.97
 |   |   |   |   |   |--- truncated branch of depth 2
-|   |   |   |   |--- tot_hi_cred_lim >  296281.50
+|   |   |   |   |--- int_rate >  22.97
 |   |   |   |   |   |--- truncated branch of depth 2

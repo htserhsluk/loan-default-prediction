@@ -1,23 +1,23 @@
 model,params,val_AUC,fit_seconds
-Logistic Regression,"{""C"": 0.01}",0.6969285675165183,0.7746957908384502
-Logistic Regression,"{""C"": 1.0}",0.6970697871065487,1.0085845831781626
-PCA + Logistic Regression,"{""n_components"": 0.8}",0.691974964138582,0.38500925013795495
-PCA + Logistic Regression,"{""n_components"": 0.9}",0.6932516618129214,0.45588641706854105
-PCA + Logistic Regression,"{""n_components"": 0.95}",0.6941632977553138,0.4312081248499453
-Decision Tree,"{""max_depth"": 4, ""min_samples_leaf"": 50}",0.6711812642487065,3.5145599581301212
-Decision Tree,"{""max_depth"": 4, ""min_samples_leaf"": 200}",0.6711812642487065,3.3747434173710644
-Decision Tree,"{""max_depth"": 6, ""min_samples_leaf"": 50}",0.6799774667927507,4.912031374871731
-Decision Tree,"{""max_depth"": 6, ""min_samples_leaf"": 200}",0.6812143889156279,5.014207500033081
-Decision Tree,"{""max_depth"": 8, ""min_samples_leaf"": 50}",0.676093007398655,6.4796805419027805
-Decision Tree,"{""max_depth"": 8, ""min_samples_leaf"": 200}",0.6780955308076179,7.038966124877334
-Decision Tree,"{""max_depth"": 10, ""min_samples_leaf"": 50}",0.6630930584732297,7.808642583433539
-Decision Tree,"{""max_depth"": 10, ""min_samples_leaf"": 200}",0.6740255601115785,7.690423583146185
-Decision Tree,"{""max_depth"": 12, ""min_samples_leaf"": 50}",0.6464736799855065,8.695199749898165
-Decision Tree,"{""max_depth"": 12, ""min_samples_leaf"": 200}",0.66855904966587,8.218411209061742
-Random Forest,"{""max_depth"": null, ""min_samples_leaf"": 50}",0.6991663547188393,71.7357661249116
-Random Forest,"{""max_depth"": 16, ""min_samples_leaf"": 20}",0.6989050765383621,78.86235866695642
-AdaBoost,null,0.6930508679926263,145.95489162486047
-Gradient Boosting,null,0.7016148954368409,95.71697520790622
-XGBoost,null,0.7061879687063688,22.549459333065897
-LightGBM,null,0.7064752421133353,20.394493957981467
-CatBoost,null,0.7071270407546136,63.41013816697523
+Logistic Regression,"{""C"": 0.01}",0.6959562875698213,0.8406204171478748
+Logistic Regression,"{""C"": 1.0}",0.6960721780369141,1.085260999854654
+PCA + Logistic Regression,"{""n_components"": 0.8}",0.689491977472042,0.4814432500861585
+PCA + Logistic Regression,"{""n_components"": 0.9}",0.690404629958681,0.3754198751412332
+PCA + Logistic Regression,"{""n_components"": 0.95}",0.6920271270925876,0.5929471659474075
+Decision Tree,"{""max_depth"": 4, ""min_samples_leaf"": 50}",0.670555308408479,3.464280624873936
+Decision Tree,"{""max_depth"": 4, ""min_samples_leaf"": 200}",0.670555308408479,3.337847040966153
+Decision Tree,"{""max_depth"": 6, ""min_samples_leaf"": 50}",0.6748598131109181,5.0400449158623815
+Decision Tree,"{""max_depth"": 6, ""min_samples_leaf"": 200}",0.6752521029252364,4.6570972092449665
+Decision Tree,"{""max_depth"": 8, ""min_samples_leaf"": 50}",0.6703556269557246,6.0266406666487455
+Decision Tree,"{""max_depth"": 8, ""min_samples_leaf"": 200}",0.6733578377030562,5.834393875207752
+Decision Tree,"{""max_depth"": 10, ""min_samples_leaf"": 50}",0.6624528157031421,8.47843141714111
+Decision Tree,"{""max_depth"": 10, ""min_samples_leaf"": 200}",0.6680627273621642,6.863136916887015
+Decision Tree,"{""max_depth"": 12, ""min_samples_leaf"": 50}",0.6468117329178585,8.117789041716605
+Decision Tree,"{""max_depth"": 12, ""min_samples_leaf"": 200}",0.6618474822405466,7.4959131251089275
+Random Forest,"{""max_depth"": null, ""min_samples_leaf"": 50}",0.6942891854080159,54.39357129205018
+Random Forest,"{""max_depth"": 16, ""min_samples_leaf"": 20}",0.694645176630805,47.5603531668894
+AdaBoost,null,0.6924107242135966,142.6600016253069
+Gradient Boosting,null,0.6986428594715987,71.00316033419222
+XGBoost,null,0.7045909046625133,18.23104933416471
+LightGBM,null,0.7050436876676669,19.200835375115275
+CatBoost,null,0.7053762625415191,38.78537137480453
